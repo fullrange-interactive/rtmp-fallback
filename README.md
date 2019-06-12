@@ -21,9 +21,24 @@ RTMP FLV data (input stream) -> .TS data (concatenable data) -> Input stream OR 
 A way to check for that is using `ffprobe` (part of `ffmpeg`). You should look at the video and audio tracks lines for the rtmp input stream and fallback .ts file and make sure they're (nearly) identical. **The only way to make sure the fallback .ts file and the input RTMP stream are compatible is by testing it anyway, and try to play the output feed in multiple players such as VLC and `ffplay`.**  
 Different bitrates and x264 presets should work; different fps may work; different profiles, pixel formats and resolution definitely won't.
 
-## Install
+## Install dependencies
 
-`npm install -g rtmp-fallback`  
+### nginx rtmp module
+
+**Ubuntu**
+
+```
+sudo apt install nginx libnginx-mod-rtmp
+```
+
+*Notice:* Some package are not available on standard debian repo. Have to compile rtmp mode for nginx.
+
+## Run
+
+```
+node 
+```
+
 ```
 Usage: rtmp-fallback rtmpInput fallbackFile rtmpOutput
 fallbackFile MUST be a .ts file
@@ -33,7 +48,15 @@ Options:
         -d ms: Set fallback video's duration in ms. Will fallback to automatic detection if not set.
 ```
 
+
+
 ## WARNING
 
 As I said before, it is an experimental tool that I can only recommend advanced users to use in production. It has only been tested on Linux, with `nginx_rtmp_module` with the `wait_video` and `wait_key` parameters enabled.  
 If you're interested in using this tool for your production, throw me a mail or [get in touch on Discord](https://discord.gg/ThePooN).
+
+## Convert MP4 to MPEG-TS
+
+```
+ffmpeg -i [input.mp4] -c copy -bsf h264_mp4toannexb [output.ts]
+```
