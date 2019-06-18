@@ -51,8 +51,6 @@ if(loggingEnabled) {
 
 function onData(videoData) {
 
-	console.log(Date.now(), "Get data from RTMP input stream");
-
 	ffmpegOut.stdin.write(videoData);
 	if(noDataTimeout)
 		clearTimeout(noDataTimeout);
