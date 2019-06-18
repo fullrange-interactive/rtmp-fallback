@@ -59,4 +59,5 @@ If you're interested in using this tool for your production, throw me a mail or 
 
 ```
 ffmpeg -i [input.mp4] -c copy -bsf h264_mp4toannexb [output.ts]
+ffmpeg -i fallback.mp4 -vcodec copy -acodec copy -f mpegts fallback.ts
 ```

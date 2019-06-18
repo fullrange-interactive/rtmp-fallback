@@ -29,7 +29,7 @@ if(!noDataDur)
 let noDataTimeout = null;
 let lastNoData = null;
 
-const ffmpegOut = spawn("ffmpeg", ("-fflags +genpts -re -f mpegts -i - -c copy -bsf:a aac_adtstoasc -f flv "+process.argv[4]).split(" "));
+const ffmpegOut = spawn("ffmpeg", ("-fflags +genpts -re -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv "+process.argv[4]).split(" "));
 ffmpegOut.on("exit", (code) => { console.log("ffmpegOut exited with code "+code+"! Exiting..."); process.exit(code); });
 
 const ffmpegIn = spawn("ffmpeg", ("-f live_flv -i - -c copy -f mpegts -").split(" "));
@@ -50,16 +50,22 @@ if(loggingEnabled) {
 }
 
 function onData(videoData) {
+
+	console.log(Date.now(), "Get data from RTMP input stream");
+
 	ffmpegOut.stdin.write(videoData);
 	if(noDataTimeout)
 		clearTimeout(noDataTimeout);
-	noDataTimeout = setTimeout(noData, timeoutLength);
+	noDataTimeout = setTimeout(noData, timeoutLength);	
+	
 }
 
 function noData() {
+
 	console.log("Timeout reached! Switching to fallback file...");
 	ffmpegOut.stdin.write(noDataBuf);
 	setNoDateTimeout();
+
 }
 
 function setNoDateTimeout() {
@@ -71,5 +77,7 @@ function setNoDateTimeout() {
 		setNoDateTimeout();
 	}, (lastNoData == null) ? noDataDur : (Date.now() - lastNoData + noDataDur));
 }
+
+//noDataTimeout = setTimeout(noData, timeoutLength);
 
 console.log("RTMP Fallback successfully initialized");
