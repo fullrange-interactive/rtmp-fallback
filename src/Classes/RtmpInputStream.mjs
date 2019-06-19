@@ -143,7 +143,16 @@ class RtmpInputStream{
     Log.say("restart called.");
 
     this.stop();
-    setTimeout(this.init.bind(this), 2000);    
+    setTimeout(() => {
+
+      this.init()
+        .catch((e) => {
+
+          throw new Error(e);
+
+        })
+
+    }, 2000);    
 
   }
 
