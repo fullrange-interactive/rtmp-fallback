@@ -1,0 +1,48 @@
+class Config{
+
+  static get timeoutLength(){
+
+    //in ms
+    return 2000;
+
+  }
+
+  static get rtmpInputStream(){
+
+    return 'rtmp://stream.qoqa.com/live/piqasso';
+
+  }
+
+  static get fallbackFilePath(){
+
+    return 'fallback.ts';
+
+  }
+
+  static get rtmpOutputStream(){
+
+    return 'rtmp://a.rtmp.youtube.com/live2/tqxr-v0vy-vwgc-5aru';
+
+  }
+
+  static get defaultConnectionPendingDuration(){
+
+    return 5000; //ms
+
+  }
+
+  static get defaultConnectionTimeout(){
+
+    return 1000; //ms
+
+  }
+
+  static get logBasePath(){
+
+    return '/tmp';
+
+  }
+
+}
+
+export default Config;

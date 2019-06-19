@@ -26,7 +26,7 @@ class FallbackVideoPlayer{
       getDuration(this.filePath)
         .then((duration) => {
 
-          this.bufferlen = duration * 1000;
+          this.bufferlen = (duration * 1000);
           this.isReady = true;
           resolve(this.bufferlen);
 
