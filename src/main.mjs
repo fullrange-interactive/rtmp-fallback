@@ -42,6 +42,7 @@ function startService(){
   .catch((e) => {
 
     Log.say("Error while starting rtmp fallback service...", e);
+    throw new Error(e);
 
   })
 
