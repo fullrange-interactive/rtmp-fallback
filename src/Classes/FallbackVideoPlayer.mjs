@@ -1,6 +1,8 @@
 import fs from 'fs';
 import getDuration from 'get-video-duration';
 
+import Log from './Log';
+
 class FallbackVideoPlayer{
 
   constructor(filePath, config){
@@ -42,7 +44,7 @@ class FallbackVideoPlayer{
     if(!this.isReady || this._sendData)      
       return;
 
-    console.log("FallbackVideo started.");
+    Log.say("FallbackVideo started.");
 
     if(typeof(this.config.onData) !== 'undefined')
       this.config.onData(this.buffer);
@@ -55,7 +57,7 @@ class FallbackVideoPlayer{
 
     if(this._sendData){
 
-      console.log("FallbackVideo stopped.");
+      Log.say("FallbackVideo stopped.");
 
       clearTimeout(this._sendData);
 

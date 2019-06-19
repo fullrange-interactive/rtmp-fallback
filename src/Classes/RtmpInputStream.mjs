@@ -1,6 +1,8 @@
 import * as ChildProcess from 'child_process';
 import fs from 'fs';
 
+import Log from './Log';
+
 import Config from '../Config';
 
 class RtmpInputStream{
@@ -131,14 +133,14 @@ class RtmpInputStream{
     if(this.currentStatus === RtmpInputStream.status.offline)
       return;
 
-    console.log("timeout reached.");
+    Log.say("timeout reached.");
     this.restart();
 
   }
 
   restart(){
 
-    console.log("restart called.");
+    Log.say("restart called.");
 
     this.stop();
     setTimeout(this.init.bind(this), 2000);    
@@ -154,7 +156,7 @@ class RtmpInputStream{
 
   stop(){
 
-    console.log("stop called.");
+    Log.say("stop called.");
 
     if(this.currentStatus !== RtmpInputStream.status.offline){
 
@@ -181,12 +183,12 @@ class RtmpInputStream{
       try{
         this.ffmpegLogStream.write(msg);
       }catch(e){
-        //console.error(msg);
+        //Log.say(msg);
       }
 
     });
 
-    console.log(`ffmpeg started with pid ${this.ffmpegProcess.pid}`);
+    Log.say(`ffmpeg started with pid ${this.ffmpegProcess.pid}`);
 
   }  
 
@@ -204,7 +206,7 @@ class RtmpInputStream{
     this.ffmpegLogStream.end()
     this.ffmpegLogStream = null;    
 
-    console.log("ffmpeg stopped");
+    Log.say("ffmpeg stopped");
 
   }
 
@@ -221,12 +223,12 @@ class RtmpInputStream{
         this.rtmpdumpLogStream.write(msg);
       }
       catch(e){
-        //console.error(msg);
+        //Log.say(msg);
       }
 
     });     
 
-    console.log(`rtmpdump started with pid ${this.rtmpdumpProcess.pid}`);
+    Log.say(`rtmpdump started with pid ${this.rtmpdumpProcess.pid}`);
 
   }
 
@@ -244,7 +246,7 @@ class RtmpInputStream{
     this.rtmpdumpLogStream.end();
     this.rtmpdumpLogStream = null    
 
-    console.log("rtmpdump stopped");
+    Log.say("rtmpdump stopped");
 
   }
 

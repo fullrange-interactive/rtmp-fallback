@@ -14,7 +14,8 @@
   "license": "GPL-3.0",
   "dependencies": {
     "get-video-duration": "^0.2.0",
-    "minimist": "^1.2.0"
+    "minimist": "^1.2.0",
+    "moment": "^2.24.0"
   },
   "repository": {
     "type": "git",

@@ -4,6 +4,7 @@ import fs from 'fs';
 import RtmpInputStream from './Classes/RtmpInputStream';
 import RtmpOutputStream from './Classes/RtmpOutputStream';
 import FallbackVideoPlayer from './Classes/FallbackVideoPlayer';
+import Log from './Classes/Log';
 
 import Config from './Config';
 
@@ -16,7 +17,7 @@ function restartFallback(){
 
 function startService(){
 
-  console.log("Starting RTMP fallback service...");
+  Log.say("Starting RTMP fallback service...");
 
   Promise.all([
     outputStream.init(),
@@ -29,9 +30,9 @@ function startService(){
     let inputStreamState = data[1];
     let fallbackVideoDuration = data[2];
 
-    console.log(`OutputStream initalized. Currently ${outputStreamState}.`);
-    console.log(`InputStream initalized. Currently ${inputStreamState}.`);
-    console.log(`FallbackVideoPlayer initalized. Video length: ${fallbackVideoDuration}.`);
+    Log.say(`OutputStream initalized. Currently ${outputStreamState}.`);
+    Log.say(`InputStream initalized. Currently ${inputStreamState}.`);
+    Log.say(`FallbackVideoPlayer initalized. Video length: ${fallbackVideoDuration}.`);
 
     //Init input state are always offline, even if we have stream on input.
     //So, start the fallback video, waiting for the input stream to be stable.
@@ -40,7 +41,7 @@ function startService(){
   })
   .catch((e) => {
 
-    console.error("Error while starting rtmp fallback service...", e);
+    Log.say("Error while starting rtmp fallback service...", e);
 
   })
 
@@ -48,7 +49,7 @@ function startService(){
 
 function stopService(){
 
-  console.log("Stopping RTMP fallback service...");
+  Log.say("Stopping RTMP fallback service...");
 
   outputStream.stop();
   inputStream.stop();  
@@ -61,7 +62,7 @@ let outputStream = new RtmpOutputStream(Config.rtmpOutputStream, {
 
   onExit: (error) => {
 
-    console.log(`OutputStream exited: ${error}`);
+    Log.say(`OutputStream exited: ${error}`);
     restartFallback();
 
   }
@@ -71,7 +72,7 @@ let outputStream = new RtmpOutputStream(Config.rtmpOutputStream, {
 let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
   onStatusChange: (currentStatus, previousStatus) => {
 
-    console.log(`Status changed from ${previousStatus} to ${currentStatus}`);
+    Log.say(`Status changed from ${previousStatus} to ${currentStatus}`);
 
     switch(currentStatus){
 
@@ -102,7 +103,7 @@ let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
   },
   onExit: (error, errorCode) => {
 
-    console.log(`InputStream exited: ${error}`)
+    Log.say(`InputStream exited: ${error}`)
 
   },
   onData: (frame) => {
@@ -118,7 +119,6 @@ let fallbackVideo = new FallbackVideoPlayer(Config.fallbackFilePath, {
   onData: (buffer) => {
 
     if(inputStream.currentStatus !== RtmpOutputStream.status.online){
-      console.log("Send fallback buffer");
       outputStream.write(buffer);
     }
 
