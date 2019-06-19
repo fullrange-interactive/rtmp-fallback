@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node --experimental-modules src/main.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Hugo \"ThePooN\" Denizart <contact@thepoon.fr>",

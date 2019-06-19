@@ -4,6 +4,19 @@ const spawn = require("child_process").spawn;
 const fs = require("fs");
 const getDuration = require("get-video-duration");
 
+function initInputStream(){
+
+	if(noDataTimeout)
+		clearTimeout(noDataTimeout);
+
+	let toReturn = spawn("ffmpeg", ("-f live_flv -i - -c copy -f mpegts -").split(" "));
+	toReturn.on("exit", (code) => { console.log("ffmpegIn exited with code " + code); ffmpegIn = initInputStream() });
+	toReturn.stdout.on("data", onData);
+
+	return toReturn;
+
+}
+
 if(argv._.length < 3) {
 	console.log("Usage: rtmp-fallback rtmpInput fallbackFile rtmpOutput");
 	console.log("fallbackFile MUST be a .ts file");
@@ -14,7 +27,7 @@ if(argv._.length < 3) {
 	process.exit(1);
 }
 
-const timeoutLength = (argv.t) ? argv.t : 5000;
+const timeoutLength = (argv.t) ? argv.t : 2000;
 const loggingEnabled = (argv.l != null);
 
 const noDataBuf = require("fs").readFileSync(process.argv[3]);
@@ -32,13 +45,11 @@ let lastNoData = null;
 const ffmpegOut = spawn("ffmpeg", ("-fflags +genpts -re -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv "+process.argv[4]).split(" "));
 ffmpegOut.on("exit", (code) => { console.log("ffmpegOut exited with code "+code+"! Exiting..."); process.exit(code); });
 
-const ffmpegIn = spawn("ffmpeg", ("-f live_flv -i - -c copy -f mpegts -").split(" "));
-ffmpegIn.on("exit", (code) => { console.log("ffmpegIn exited with code "+code+"! Exiting..."); process.exit(code); });
-ffmpegIn.stdout.on("data", onData);
+ffmpegIn = initInputStream();
 
 const currentStream = spawn("rtmpdump", ("-m 0 -v -r "+process.argv[2]).split(" "));
 currentStream.on("exit", (code) => { console.log("rtmpdump exited with code "+code+"+! Exiting..."); process.exit(code); });
-currentStream.stdout.on("data", (videoData) => ffmpegIn.stdin.write(videoData));
+currentStream.stdout.on("data", (videoData) => { console.log("GetData from rtmpdump"); ffmpegIn.stdin.write(videoData) });
 
 if(loggingEnabled) {
 	const ffmpegOutLog = fs.createWriteStream("/tmp/ffmpegoutlog");
@@ -50,6 +61,8 @@ if(loggingEnabled) {
 }
 
 function onData(videoData) {
+
+
 
 	ffmpegOut.stdin.write(videoData);
 	if(noDataTimeout)
@@ -69,6 +82,7 @@ function noData() {
 function setNoDateTimeout() {
 	// Instead of using setInterval, we're using setTimeout with re-calculated delay everytime, otherwise the delay will increase over time
 	// because of the time it takes to write to the console and pass data to ffmpeg
+
 	noDataTimeout = setTimeout(() => {
 		ffmpegOut.stdin.write(noDataBuf);
 		lastNoData = Date.now();
