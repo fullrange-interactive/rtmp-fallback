@@ -26,17 +26,25 @@ function startService(){
   ])
   .then((data) => {
 
-    let outputStreamState = data[0];
-    let inputStreamState = data[1];
-    let fallbackVideoDuration = data[2];
+    try{
 
-    Log.say(`OutputStream initalized. Currently ${outputStreamState}.`);
-    Log.say(`InputStream initalized. Currently ${inputStreamState}.`);
-    Log.say(`FallbackVideoPlayer initalized. Video length: ${fallbackVideoDuration}.`);
+      let outputStreamState = data[0];
+      let inputStreamState = data[1];
+      let fallbackVideoDuration = data[2];
 
-    //Init input state are always offline, even if we have stream on input.
-    //So, start the fallback video, waiting for the input stream to be stable.
-    fallbackVideo.start();
+      Log.say(`OutputStream initalized. Currently ${outputStreamState}.`);
+      Log.say(`InputStream initalized. Currently ${inputStreamState}.`);
+      Log.say(`FallbackVideoPlayer initalized.`);
+
+      //Init input state are always offline, even if we have stream on input.
+      //So, start the fallback video, waiting for the input stream to be stable.
+      fallbackVideo.play();
+
+    }catch(e){
+
+      throw new Error(e);
+
+    }
 
   })
   .catch((e) => {
@@ -53,7 +61,8 @@ function stopService(){
   Log.say("Stopping RTMP fallback service...");
 
   outputStream.stop();
-  inputStream.stop();  
+  inputStream.stop();
+  fallbackVideo.stop();
 
 }
 
@@ -79,23 +88,21 @@ let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
 
       case RtmpInputStream.status.offline:
 
-        fallbackVideo.start();
+        fallbackVideo.play();
 
         break;
 
 
       case RtmpInputStream.status.connectionPending:
 
-        if(previousStatus)
-
-        fallbackVideo.start();
+        fallbackVideo.play();
 
         break;
 
 
       case RtmpInputStream.status.online:
 
-        fallbackVideo.stop();
+        fallbackVideo.pause();
 
         break;
 
@@ -117,11 +124,10 @@ let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
 
 let fallbackVideo = new FallbackVideoPlayer(Config.fallbackFilePath, {
 
-  onData: (buffer) => {
+  onData: (frame) => {
 
-    if(inputStream.currentStatus !== RtmpOutputStream.status.online){
-      outputStream.write(buffer);
-    }
+    if(inputStream.currentStatus !== RtmpInputStream.status.online && outputStream.currentStatus === RtmpOutputStream.status.online)
+      outputStream.write(frame);
 
   }
 

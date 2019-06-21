@@ -26,9 +26,11 @@ class RtmpOutputStream{
 
         this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-fflags +genpts -re -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv ${this.url}`).split(" "));
         this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
-        this.ffmpegProcess.stderr.on("data", (msg) => this.ffmpegLogStream.write(msg));
+        this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
 
         this.currentStatus = RtmpOutputStream.status.online;
+
+        console.log("RtmpOutputStream is now online");
 
         resolve(this.currentStatus);
 
@@ -43,19 +45,24 @@ class RtmpOutputStream{
 
   }
 
+  restart(){
+
+    this.stop();
+    return this.init();
+
+  }
+
   onFfmpegExit(errorCode){
 
     if(typeof(this.config.onExit) !== 'undefined')
-      this.config.onExit(`ffmpeg exit with error code ${errorCode}. More information in log ${Config.logBasePath}/ffmpeginlog`);
+      this.config.onExit(`ffmpeg output stream exit with error code ${errorCode}. More information in log ${Config.logBasePath}/ffmpeginlog`);
 
   }
 
   write(frameData){
 
-    if(this.currentStatus === RtmpOutputStream.status.offline)
-      throw new Error(RtmpOutputStream.error.streamIsOffline)
-
-    this.ffmpegProcess.stdin.write(frameData);
+    if(this.ffmpegProcess !== null)
+      this.ffmpegProcess.stdin.write(frameData);
 
   }
 
@@ -67,15 +74,24 @@ class RtmpOutputStream{
 
   stop(){
 
-    this.currentStatus = RtmpOutputStream.status.offline;
+    try{
 
-    this.ffmpegProcess.stdin.pause();
-    this.ffmpegProcess.stderr.unref();
-    this.ffmpegProcess.kill('SIGKILL');
-    this.ffmpegProcess = null;
+      console.log("RtmpOutputStream is now offline");
 
-    this.ffmpegLogStream.end()
-    this.ffmpegLogStream = null;
+      this.currentStatus = RtmpOutputStream.status.offline;
+
+      this.ffmpegProcess.stdin.pause();
+      this.ffmpegProcess.stderr.unref();
+      this.ffmpegProcess.kill('SIGKILL');
+      this.ffmpegProcess = null;
+
+      this.ffmpegLogStream.end()
+      this.ffmpegLogStream = null;
+
+    }
+    catch(e){
+
+    }
 
   }
 
