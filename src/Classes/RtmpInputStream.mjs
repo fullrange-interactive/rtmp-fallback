@@ -185,7 +185,7 @@ class RtmpInputStream{
 
     this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpeginlog`);
 
-    this.ffmpegProcess = ChildProcess.spawn('ffmpeg', ('-f live_flv -i - -c copy -filter:v "hflip" -f mpegts -').split(' '));
+    this.ffmpegProcess = ChildProcess.spawn('ffmpeg', ('-f live_flv -i - -c copy -f mpegts -').split(' '));
     this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
     this.ffmpegProcess.stdout.on("data", this.onData.bind(this));
     this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
