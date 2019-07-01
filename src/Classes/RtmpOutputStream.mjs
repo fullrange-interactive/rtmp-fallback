@@ -24,9 +24,21 @@ class RtmpOutputStream{
 
         this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegoutlog`);
 
-        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-fflags +genpts -re -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv ${this.url}`).split(" "));
+        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-fflags +genpts -loglevel panic -re -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv ${this.url}`).split(" "));
         this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
         this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
+
+        this.ffmpegProcess.on('error', (e) => {
+          console.log('something is erroring into the ffmpeg process', e);
+        });
+
+        this.ffmpegProcess.on('pipe', (src) => {
+          console.log('something is piping into the ffmpeg output process');
+        });
+
+        this.ffmpegProcess.on('unpipe', (src) => {
+          console.log('something is unpiping into the ffmpeg output process');
+        });
 
         this.currentStatus = RtmpOutputStream.status.online;
 
@@ -61,7 +73,7 @@ class RtmpOutputStream{
 
   write(frameData){
 
-    if(this.ffmpegProcess !== null)
+    if(this.ffmpegProcess !== null && this.ffmpegProcess.stdin.writable)
       this.ffmpegProcess.stdin.write(frameData);
 
   }

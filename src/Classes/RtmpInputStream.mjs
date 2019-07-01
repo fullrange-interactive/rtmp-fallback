@@ -32,7 +32,7 @@ class RtmpInputStream{
     this.ffmpegLogStream = null;
 
     this.rtmpdumpProcess = null;
-    this.rtmpdumpLogStream = null;
+    //this.rtmpdumpLogStream = null;
 
   }
 
@@ -124,7 +124,7 @@ class RtmpInputStream{
 
   onRawData(rawFrame){
 
-    if(this.ffmpegProcess !== null)
+    if(this.ffmpegProcess !== null && this.ffmpegProcess.stdin.writable)
       this.ffmpegProcess.stdin.write(rawFrame);
 
   }
@@ -134,14 +134,14 @@ class RtmpInputStream{
     if(this.currentStatus === RtmpInputStream.status.offline)
       return;
 
-    Log.say("timeout reached.");
+    Log.say("input stream timeout reached.");
     this.restart();
 
   }
 
   restart(){
 
-    Log.say("restart called.");
+    Log.say("Input stream restart called.");
 
     this.stop();
     setTimeout(() => {
@@ -185,10 +185,24 @@ class RtmpInputStream{
 
     this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpeginlog`);
 
-    this.ffmpegProcess = ChildProcess.spawn('ffmpeg', ('-f live_flv -i - -c copy -f mpegts -').split(' '));
+    this.ffmpegProcess = ChildProcess.spawn('ffmpeg', ('-f live_flv -loglevel panic -i - -c copy -f mpegts -').split(' '));
     this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
     this.ffmpegProcess.stdout.on("data", this.onData.bind(this));
     this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
+
+    this.ffmpegProcess.on('error', (e) => {
+      console.log('something is erroring into the ffmpeg process', e);
+    });
+
+
+    this.ffmpegProcess.on('pipe', (src) => {
+      console.log('something is piping into the ffmpeg input process');
+    });
+
+    this.ffmpegProcess.on('unpipe', (src) => {
+      console.log('something is unpiping into the ffmpeg input process');
+    });
+
 
     Log.say(`ffmpeg input stream started with pid ${this.ffmpegProcess.pid}`);
 
@@ -214,12 +228,24 @@ class RtmpInputStream{
 
   startRtmpdump(){
 
-    this.rtmpdumpLogStream = fs.createWriteStream(`${Config.logBasePath}/rtmpdumplog`);
+    //this.rtmpdumpLogStream = fs.createWriteStream(`${Config.logBasePath}/rtmpdumplog`);
 
     this.rtmpdumpProcess = ChildProcess.spawn('rtmpdump', (`-m 0 -v -r ${this.url}`).split(' '));    
     this.rtmpdumpProcess.on("exit", this.onRtmpdumpExit.bind(this));
     this.rtmpdumpProcess.stdout.on("data", this.onRawData.bind(this));
-    this.rtmpdumpProcess.stderr.on("data", (msg) => { if(this.rtmpdumpLogStream !== null) this.rtmpdumpLogStream.write(msg) });     
+    //this.rtmpdumpProcess.stderr.on("data", (msg) => { if(this.rtmpdumpLogStream !== null) this.rtmpdumpLogStream.write(msg) });     
+
+    this.rtmpdumpProcess.on('pipe', (src) => {
+      console.log('something is piping into the rtmpdump process');
+    });
+
+    this.rtmpdumpProcess.on('error', (e) => {
+      console.log('something is erroring into the rtmpdump process', e);
+    });
+
+    this.rtmpdumpProcess.on('unpipe', (src) => {
+      console.log('something is unpiping into the rtmpdump process');
+    });
 
     Log.say(`rtmpdump input stream started with pid ${this.rtmpdumpProcess.pid}`);
 
@@ -236,8 +262,8 @@ class RtmpInputStream{
     this.rtmpdumpProcess.kill('SIGKILL');
     this.rtmpdumpProcess = null;
 
-    this.rtmpdumpLogStream.end();
-    this.rtmpdumpLogStream = null    
+    //this.rtmpdumpLogStream.end();
+    //this.rtmpdumpLogStream = null    
 
     Log.say("rtmpdump stopped");
 
