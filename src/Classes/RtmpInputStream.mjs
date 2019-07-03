@@ -1,5 +1,6 @@
 import * as ChildProcess from 'child_process';
 import fs from 'fs';
+import moment from 'moment';
 
 import Log from './Log';
 
@@ -32,7 +33,7 @@ class RtmpInputStream{
     this.ffmpegLogStream = null;
 
     this.rtmpdumpProcess = null;
-    //this.rtmpdumpLogStream = null;
+    this.rtmpdumpLogStream = null;
 
   }
 
@@ -63,7 +64,7 @@ class RtmpInputStream{
     errorCode = errorCode === null ? 0 : errorCode;
 
     if(typeof(this.config.onExit) !== 'undefined')
-      this.config.onExit(`rtmpdump input stream exited with error code ${errorCode}. More information in log ${Config.logBasePath}/rtmpdumplog`, errorCode);
+      this.config.onExit(`rtmpdump input stream exited with error code ${errorCode}. More information in log ${Config.logBasePath}/rtmpdumplog_date`, errorCode);
 
 
   }
@@ -73,7 +74,7 @@ class RtmpInputStream{
     errorCode = errorCode === null ? 0 : errorCode;
 
     if(typeof(this.config.onExit) !== 'undefined')
-      this.config.onExit(`ffmpeg input stream exited with error code ${errorCode}. More information in log ${Config.logBasePath}/ffmpeginlog`, errorCode);
+      this.config.onExit(`ffmpeg input stream exited with error code ${errorCode}. More information in log ${Config.logBasePath}/ffmpeginlog_date`, errorCode);
 
   }
 
@@ -134,7 +135,7 @@ class RtmpInputStream{
     if(this.currentStatus === RtmpInputStream.status.offline)
       return;
 
-    Log.say("input stream timeout reached.");
+    Log.say(`input stream timeout reached. Is ffmpeg stdin writiable ?: ${this.ffmpegProcess.stdin.writable}`);
     this.restart();
 
   }
@@ -183,9 +184,9 @@ class RtmpInputStream{
 
   startFfmpeg(){
 
-    this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpeginlog`);
+    this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpeginlog_${moment().format("DD.MM.YYYY_HH:mm:ss")}`);
 
-    this.ffmpegProcess = ChildProcess.spawn('ffmpeg', ('-f live_flv -loglevel panic -i - -c copy -f mpegts -').split(' '));
+    this.ffmpegProcess = ChildProcess.spawn('ffmpeg', ('-f live_flv -i - -c copy -f mpegts -').split(' '));
     this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
     this.ffmpegProcess.stdout.on("data", this.onData.bind(this));
     this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
@@ -228,12 +229,12 @@ class RtmpInputStream{
 
   startRtmpdump(){
 
-    //this.rtmpdumpLogStream = fs.createWriteStream(`${Config.logBasePath}/rtmpdumplog`);
+    this.rtmpdumpLogStream = fs.createWriteStream(`${Config.logBasePath}/rtmpdumplog_${moment().format("DD.MM.YYYY_HH:mm:ss")}`);
 
     this.rtmpdumpProcess = ChildProcess.spawn('rtmpdump', (`-m 0 -v -r ${this.url}`).split(' '));    
     this.rtmpdumpProcess.on("exit", this.onRtmpdumpExit.bind(this));
     this.rtmpdumpProcess.stdout.on("data", this.onRawData.bind(this));
-    //this.rtmpdumpProcess.stderr.on("data", (msg) => { if(this.rtmpdumpLogStream !== null) this.rtmpdumpLogStream.write(msg) });     
+    this.rtmpdumpProcess.stderr.on("data", (msg) => { if(this.rtmpdumpLogStream !== null) this.rtmpdumpLogStream.write(msg) });     
 
     this.rtmpdumpProcess.on('pipe', (src) => {
       console.log('something is piping into the rtmpdump process');
@@ -262,8 +263,8 @@ class RtmpInputStream{
     this.rtmpdumpProcess.kill('SIGKILL');
     this.rtmpdumpProcess = null;
 
-    //this.rtmpdumpLogStream.end();
-    //this.rtmpdumpLogStream = null    
+    this.rtmpdumpLogStream.end();
+    this.rtmpdumpLogStream = null    
 
     Log.say("rtmpdump stopped");
 

@@ -1,5 +1,6 @@
 import * as ChildProcess from 'child_process';
 import fs from 'fs';
+import moment from 'moment';
 
 import Config from '../Config';
 
@@ -22,9 +23,9 @@ class RtmpOutputStream{
 
       try{
 
-        this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegoutlog`);
+        this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegoutlog_${moment().format("DD.MM.YYYY_HH:mm:ss")}`);
 
-        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-fflags +genpts -loglevel panic -re -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv ${this.url}`).split(" "));
+        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-fflags +genpts -re -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv ${this.url}`).split(" "));
         this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
         this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
 

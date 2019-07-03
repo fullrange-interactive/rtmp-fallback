@@ -27,7 +27,7 @@ class FallbackVideoPlayer{
 
         this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegfallbacklog`);
 
-        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-re -stream_loop -1 -i ${this.filePath} -loglevel panic -ar 44100 -c copy -f mpegts -`).split(" "));
+        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-re -stream_loop -1 -i ${this.filePath} -ar 44100 -c copy -f mpegts -`).split(" "));
         this.ffmpegProcess.stdout.on("data", this.onData.bind(this));
         this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
         this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
