@@ -29,6 +29,14 @@ class RtmpOutputStream{
         this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
         this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
 
+        this.ffmpegProcess.stdin.on('error', (e) => {
+          console.log('something is erroring in the outputStream ffmpeg stdin stream', e);
+        })
+
+        this.ffmpegProcess.stdout.on('error', (e) => {
+          console.log('something is erroring in the outputStream ffmpeg stdout stream', e);
+        })
+
         this.ffmpegProcess.on('error', (e) => {
           console.log('something is erroring into the ffmpeg process', e);
         });
@@ -72,10 +80,26 @@ class RtmpOutputStream{
 
   }
 
+  pipeFrom(inputStream){
+
+    if (this.ffmpegProcess !== null){
+      inputStream.pipe(this.ffmpegProcess.stdin, { end: true });
+    }
+
+  }
+
+  unpipeFrom(inputStream){
+
+    if (this.ffmpegProcess !== null){
+      inputStream.unpipe(this.ffmpegProcess.stdin);
+    }
+
+  }
+
   write(frameData){
 
-    if(this.ffmpegProcess !== null && this.ffmpegProcess.stdin.writable)
-      this.ffmpegProcess.stdin.write(frameData);
+    // if(this.ffmpegProcess !== null && this.ffmpegProcess.stdin.writable)
+    //   this.ffmpegProcess.stdin.write(frameData);
 
   }
 

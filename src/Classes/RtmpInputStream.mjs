@@ -35,6 +35,9 @@ class RtmpInputStream{
     this.rtmpdumpProcess = null;
     this.rtmpdumpLogStream = null;
 
+    this._outputStream = null;
+    this._piped = false;
+
   }
 
   init(){
@@ -45,6 +48,7 @@ class RtmpInputStream{
 
         this.startFfmpeg();
         this.startRtmpdump();
+        this.startInnerPipe();
 
         resolve(this.currentStatus);
 
@@ -112,6 +116,7 @@ class RtmpInputStream{
 
         if(typeof(this.config.onData) !== 'undefined'){
           this.config.onData(frame);
+          this.startOutputPipe();
         }
 
         break;                
@@ -120,6 +125,34 @@ class RtmpInputStream{
         throw new Error(RtmpInputStream.error.unknownInputStreamStatus(this.currentStatus))
 
     }    
+
+  }
+
+  pipeTo(outputStream){
+
+    this._outputStream = outputStream;
+
+  }
+
+  startOutputPipe() {
+
+    if (!this._piped && this._outputStream !== null) {
+
+      this._outputStream.pipeFrom(this.ffmpegProcess.stdout);
+      this._piped = true;
+
+    }
+
+  }
+
+  stopOutputPipe() {
+
+    if (this._piped && this._outputStream !== null) {
+
+      this._outputStream.unpipeFrom(this.ffmpegProcess.stdout);
+      this._piped = false;
+
+    }
 
   }
 
@@ -148,6 +181,11 @@ class RtmpInputStream{
     setTimeout(() => {
 
       this.init()
+        .then(() => {
+
+          this.startOutputPipe();
+
+        })
         .catch((e) => {
 
           throw new Error(e);
@@ -177,6 +215,8 @@ class RtmpInputStream{
 
     }
 
+    this.stopOutputPipe();
+    this.stopInnerPipe();
     this.stopFfmpeg();
     this.stopRtmpdump();
 
@@ -191,6 +231,14 @@ class RtmpInputStream{
     this.ffmpegProcess.stdout.on("data", this.onData.bind(this));
     this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
 
+    this.ffmpegProcess.stdin.on('error', (e) => {
+      console.log('something is erroring in the inputstream ffmpeg stdin stream', e);
+    })
+
+    this.ffmpegProcess.stdout.on('error', (e) => {
+      console.log('something is erroring in the inputstream ffmpeg stdout stream', e);
+    })
+
     this.ffmpegProcess.on('error', (e) => {
       console.log('something is erroring into the ffmpeg process', e);
     });
@@ -203,7 +251,6 @@ class RtmpInputStream{
     this.ffmpegProcess.on('unpipe', (src) => {
       console.log('something is unpiping into the ffmpeg input process');
     });
-
 
     Log.say(`ffmpeg input stream started with pid ${this.ffmpegProcess.pid}`);
 
@@ -233,7 +280,7 @@ class RtmpInputStream{
 
     this.rtmpdumpProcess = ChildProcess.spawn('rtmpdump', (`-m 0 -v -r ${this.url}`).split(' '));    
     this.rtmpdumpProcess.on("exit", this.onRtmpdumpExit.bind(this));
-    this.rtmpdumpProcess.stdout.on("data", this.onRawData.bind(this));
+    // this.rtmpdumpProcess.stdout.on("data", this.onRawData.bind(this));
     this.rtmpdumpProcess.stderr.on("data", (msg) => { if(this.rtmpdumpLogStream !== null) this.rtmpdumpLogStream.write(msg) });     
 
     this.rtmpdumpProcess.on('pipe', (src) => {
@@ -249,6 +296,18 @@ class RtmpInputStream{
     });
 
     Log.say(`rtmpdump input stream started with pid ${this.rtmpdumpProcess.pid}`);
+
+  }
+
+  startInnerPipe(){
+
+    this.rtmpdumpProcess.stdout.pipe(this.ffmpegProcess.stdin, { end: false });
+
+  }
+
+  stopInnerPipe(){
+
+    this.rtmpdumpProcess.stdout.unpipe(this.ffmpegProcess.stdin);
 
   }
 
