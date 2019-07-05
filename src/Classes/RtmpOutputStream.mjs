@@ -1,12 +1,15 @@
 import * as ChildProcess from 'child_process';
 import fs from 'fs';
 import moment from 'moment';
+import EventEmitter from 'events';
 
 import Config from '../Config';
 
-class RtmpOutputStream{
+class RtmpOutputStream extends EventEmitter{
 
   constructor(url, config){
+
+    super();
 
     this.url = url;
     this.config = config;
@@ -23,7 +26,7 @@ class RtmpOutputStream{
 
       try{
 
-        this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegoutlog_${moment().format("DD.MM.YYYY_HH:mm:ss")}`);
+        // this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegoutlog_${moment().format("DD.MM.YYYY_HH:mm:ss")}`);
 
         this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-fflags +genpts -re -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv ${this.url}`).split(" "));
         this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
@@ -69,7 +72,9 @@ class RtmpOutputStream{
   restart(){
 
     this.stop();
-    return this.init();
+    var retval = this.init();
+    this.emit('restart', this);
+    return retval;
 
   }
 
@@ -83,7 +88,7 @@ class RtmpOutputStream{
   pipeFrom(inputStream){
 
     if (this.ffmpegProcess !== null){
-      inputStream.pipe(this.ffmpegProcess.stdin, { end: true });
+      inputStream.pipe(this.ffmpegProcess.stdin, { end: false });
     }
 
   }
@@ -122,7 +127,9 @@ class RtmpOutputStream{
       this.ffmpegProcess.kill('SIGKILL');
       this.ffmpegProcess = null;
 
-      this.ffmpegLogStream.end()
+      if (this.ffmpegLogStream !== null){
+        this.ffmpegLogStream.end()
+      }
       this.ffmpegLogStream = null;
 
     }
