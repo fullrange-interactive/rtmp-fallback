@@ -1,12 +1,17 @@
 import * as ChildProcess from 'child_process';
 import fs from 'fs';
 import moment from 'moment';
+import EventEmitter from 'events';
+
+import Log from './Log';
 
 import Config from '../Config';
 
-class RtmpOutputStream{
+class RtmpOutputStream extends EventEmitter{
 
   constructor(url, config){
+
+    super();
 
     this.url = url;
     this.config = config;
@@ -25,25 +30,31 @@ class RtmpOutputStream{
 
         this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegoutlog_${moment().format("DD.MM.YYYY_HH:mm:ss")}`);
 
-        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-fflags +genpts -re -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv ${this.url}`).split(" "));
+        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-fflags +genpts -re -loglevel panic -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv ${this.url}`).split(" "));
         this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
-        this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
+        this.ffmpegProcess.stderr.on("data", this.onError.bind(this));
+
+        this.ffmpegProcess.stdin.on('error', (e) => {
+
+          this.onError(`Something is erroring in the outputStream ffmpeg stdin stream: ${e}`);
+
+        })
+
+        this.ffmpegProcess.stdout.on('error', (e) => {
+
+          this.onError(`Something is erroring in the outputStream ffmpeg stdout stream: ${e}`);
+
+        })
 
         this.ffmpegProcess.on('error', (e) => {
-          console.log('something is erroring into the ffmpeg process', e);
-        });
 
-        this.ffmpegProcess.on('pipe', (src) => {
-          console.log('something is piping into the ffmpeg output process');
-        });
+          this.onError(`Something is erroring into the ffmpeg outputStream process: ${e}`);
 
-        this.ffmpegProcess.on('unpipe', (src) => {
-          console.log('something is unpiping into the ffmpeg output process');
         });
 
         this.currentStatus = RtmpOutputStream.status.online;
 
-        console.log("RtmpOutputStream is now online");
+        Log.say("RtmpOutputStream is now online");
 
         resolve(this.currentStatus);
 
@@ -61,7 +72,9 @@ class RtmpOutputStream{
   restart(){
 
     this.stop();
-    return this.init();
+    var retval = this.init();
+    this.emit('restart', this);
+    return retval;
 
   }
 
@@ -72,10 +85,19 @@ class RtmpOutputStream{
 
   }
 
-  write(frameData){
+  pipeFrom(inputStream){
 
-    if(this.ffmpegProcess !== null && this.ffmpegProcess.stdin.writable)
-      this.ffmpegProcess.stdin.write(frameData);
+    if (this.ffmpegProcess !== null){
+      inputStream.pipe(this.ffmpegProcess.stdin, { end: false });
+    }
+
+  }
+
+  unpipeFrom(inputStream){
+
+    if (this.ffmpegProcess !== null){
+      inputStream.unpipe(this.ffmpegProcess.stdin);
+    }
 
   }
 
@@ -85,11 +107,18 @@ class RtmpOutputStream{
 
   }
 
+  onError(e){
+
+    if(this.ffmpegLogStream !== null)
+      this.ffmpegLogStream.write(e)
+
+  }
+
   stop(){
 
     try{
 
-      console.log("RtmpOutputStream is now offline");
+      Log.say("RtmpOutputStream is now offline");
 
       this.currentStatus = RtmpOutputStream.status.offline;
 
@@ -98,7 +127,9 @@ class RtmpOutputStream{
       this.ffmpegProcess.kill('SIGKILL');
       this.ffmpegProcess = null;
 
-      this.ffmpegLogStream.end()
+      if (this.ffmpegLogStream !== null){
+        this.ffmpegLogStream.end()
+      }
       this.ffmpegLogStream = null;
 
     }

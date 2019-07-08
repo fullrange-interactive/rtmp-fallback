@@ -36,6 +36,9 @@ function startService(){
       Log.say(`InputStream initalized. Currently ${inputStreamState}.`);
       Log.say(`FallbackVideoPlayer initalized.`);
 
+      fallbackVideo.pipeTo(outputStream);
+      inputStream.pipeTo(outputStream);
+
       //Init input state are always offline, even if we have stream on input.
       //So, start the fallback video, waiting for the input stream to be stable.
       fallbackVideo.play();
@@ -82,7 +85,7 @@ let outputStream = new RtmpOutputStream(Config.rtmpOutputStream, {
 let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
   onStatusChange: (currentStatus, previousStatus) => {
 
-    Log.say(`Status changed from ${previousStatus} to ${currentStatus}`);
+    Log.say(`Input stream status changed from ${previousStatus} to ${currentStatus}`);
 
     switch(currentStatus){
 
@@ -111,27 +114,27 @@ let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
   },
   onExit: (error, errorCode) => {
 
-    Log.say(`InputStream exited: ${error}`)
+    Log.say(`InputStream exited: ${error}`);
 
-  },
-  onData: (frame) => {
-
-    if(outputStream.currentStatus === RtmpOutputStream.status.online)
-      outputStream.write(frame);
+    if(errorCode !== 0)
+      restartFallback();
 
   }
+
 });
 
 let fallbackVideo = new FallbackVideoPlayer(Config.fallbackFilePath, {
 
-  onData: (frame) => {
+  onExit: (error, errorCode) => {
 
-    if(inputStream.currentStatus !== RtmpInputStream.status.online && outputStream.currentStatus === RtmpOutputStream.status.online)
-      outputStream.write(frame);
+    Log.say(`FallbackVideo exited: ${error}`);
+
+    if(errorCode !== 0)
+      restartFallback();    
 
   }
 
-})
+});
 
 
 startService();
