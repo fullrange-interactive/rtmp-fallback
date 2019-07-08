@@ -116,6 +116,9 @@ let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
 
     Log.say(`InputStream exited: ${error}`);
 
+    if(errorCode !== 0)
+      restartFallback();
+
   }
 
 });
@@ -125,6 +128,9 @@ let fallbackVideo = new FallbackVideoPlayer(Config.fallbackFilePath, {
   onExit: (error, errorCode) => {
 
     Log.say(`FallbackVideo exited: ${error}`);
+
+    if(errorCode !== 0)
+      restartFallback();    
 
   }
 

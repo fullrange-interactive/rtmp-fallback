@@ -60,23 +60,29 @@ class RtmpInputStream{
 
   startFfmpeg(){
 
-    // this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpeginlog_${moment().format("DD.MM.YYYY_HH-mm-ss")}`);
+    this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpeginlog_${moment().format("DD.MM.YYYY_HH-mm-ss")}`);
 
-    this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-i ${this.url} -c copy -f mpegts -`).split(' '));
+    this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-i ${this.url} -loglevel panic -c copy -f mpegts -`).split(' '));
     this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
     this.ffmpegProcess.stdout.on("data", this.onData.bind(this));
-    this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
+    this.ffmpegProcess.stderr.on("data", this.onError.bind(this));
 
     this.ffmpegProcess.stdin.on('error', (e) => {
-      console.log('something is erroring in the inputstream ffmpeg stdin stream', e);
+
+      this.onError(`Something is erroring in the inputStream ffmpeg stdin stream: ${e}`);
+
     })
 
     this.ffmpegProcess.stdout.on('error', (e) => {
-      console.log('something is erroring in the inputstream ffmpeg stdout stream', e);
+
+      this.onError(`Something is erroring in the inputStream ffmpeg stdout stream: ${e}`);
+
     })
 
     this.ffmpegProcess.on('error', (e) => {
-      console.log('something is erroring into the ffmpeg process', e);
+
+      this.onError(`Something is erroring into the ffmpeg inputStream process: ${e}`);
+
     });
 
     Log.say(`ffmpeg input stream started with pid ${this.ffmpegProcess.pid}`);
@@ -234,6 +240,13 @@ class RtmpInputStream{
 
     if(typeof(this.config.onStatusChange) !== 'undefined')
       this.config.onStatusChange(this.currentStatus, previousStatus)
+
+  }
+
+  onError(e){
+
+    if(this.ffmpegLogStream !== null)
+      this.ffmpegLogStream.write(e);
 
   }
 

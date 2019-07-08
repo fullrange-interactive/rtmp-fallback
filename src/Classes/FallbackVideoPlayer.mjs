@@ -28,22 +28,32 @@ class FallbackVideoPlayer{
 
       try{
 
-        // this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegfallbacklog`);
+        this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegfallbacklog`);
 
-        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-re -stream_loop -1 -i ${this.filePath} -ar 44100 -c copy -f mpegts -`).split(" "));
+        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-re -stream_loop -1 -loglevel panic -i ${this.filePath} -ar 44100 -c copy -f mpegts -`).split(" "));
         this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
-        this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
+        this.ffmpegProcess.stderr.on("data", this.onError.bind(this));
 
         this.ffmpegProcess.stdin.on('error', (e) => {
-          console.log('something is erroring in the fallbackvideo ffmpeg stdin stream', e);
+
+          this.onError(`Something is erroring in the fallbackVideoPlayer ffmpeg stdin stream: ${e}`);
+
         })
 
         this.ffmpegProcess.stdout.on('error', (e) => {
-          console.log('something is erroring in the fallbackvideo ffmpeg stdout stream', e);
+
+          this.onError(`Something is erroring in the fallbackVideoPlayer ffmpeg stdout stream: ${e}`);
+
         })
 
-        Log.say("Fallback init");
+        this.ffmpegProcess.on('error', (e) => {
 
+          this.onError(`Something is erroring into the ffmpeg fallbackVideoPlayer process: ${e}`);
+
+        });        
+
+
+        Log.say("Fallback video player init");
         resolve();
 
       }
@@ -63,6 +73,13 @@ class FallbackVideoPlayer{
 
     if(typeof(this.config.onExit) !== 'undefined')
       this.config.onExit(`ffmpeg fallback exit with error code ${errorCode}. More information in log ${Config.logBasePath}/ffmpegfallbacklog`);
+
+  }
+
+  onError(e){
+
+    if(this.ffmpegLogStream !== null)
+      this.ffmpegLogStream.write(e)
 
   }
 
@@ -149,7 +166,7 @@ class FallbackVideoPlayer{
     }
     this.ffmpegLogStream = null;    
 
-    Log.say("Fallback stopped");    
+    Log.say("Fallback video player stopped");    
 
   }
 

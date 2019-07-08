@@ -3,6 +3,8 @@ import fs from 'fs';
 import moment from 'moment';
 import EventEmitter from 'events';
 
+import Log from './Log';
+
 import Config from '../Config';
 
 class RtmpOutputStream extends EventEmitter{
@@ -26,35 +28,33 @@ class RtmpOutputStream extends EventEmitter{
 
       try{
 
-        // this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegoutlog_${moment().format("DD.MM.YYYY_HH:mm:ss")}`);
+        this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegoutlog_${moment().format("DD.MM.YYYY_HH:mm:ss")}`);
 
-        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-fflags +genpts -re -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv ${this.url}`).split(" "));
+        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-fflags +genpts -re -loglevel panic -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv ${this.url}`).split(" "));
         this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
-        this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
+        this.ffmpegProcess.stderr.on("data", this.onError.bind(this));
 
         this.ffmpegProcess.stdin.on('error', (e) => {
-          console.log('something is erroring in the outputStream ffmpeg stdin stream', e);
+
+          this.onError(`Something is erroring in the outputStream ffmpeg stdin stream: ${e}`);
+
         })
 
         this.ffmpegProcess.stdout.on('error', (e) => {
-          console.log('something is erroring in the outputStream ffmpeg stdout stream', e);
+
+          this.onError(`Something is erroring in the outputStream ffmpeg stdout stream: ${e}`);
+
         })
 
         this.ffmpegProcess.on('error', (e) => {
-          console.log('something is erroring into the ffmpeg process', e);
-        });
 
-        this.ffmpegProcess.on('pipe', (src) => {
-          console.log('something is piping into the ffmpeg output process');
-        });
+          this.onError(`Something is erroring into the ffmpeg outputStream process: ${e}`);
 
-        this.ffmpegProcess.on('unpipe', (src) => {
-          console.log('something is unpiping into the ffmpeg output process');
         });
 
         this.currentStatus = RtmpOutputStream.status.online;
 
-        console.log("RtmpOutputStream is now online");
+        Log.say("RtmpOutputStream is now online");
 
         resolve(this.currentStatus);
 
@@ -101,16 +101,16 @@ class RtmpOutputStream extends EventEmitter{
 
   }
 
-  write(frameData){
-
-    // if(this.ffmpegProcess !== null && this.ffmpegProcess.stdin.writable)
-    //   this.ffmpegProcess.stdin.write(frameData);
-
-  }
-
   getCurrentStatus(){
 
     return this.getCurrentStatus;
+
+  }
+
+  onError(e){
+
+    if(this.ffmpegLogStream !== null)
+      this.ffmpegLogStream.write(e)
 
   }
 
@@ -118,7 +118,7 @@ class RtmpOutputStream extends EventEmitter{
 
     try{
 
-      console.log("RtmpOutputStream is now offline");
+      Log.say("RtmpOutputStream is now offline");
 
       this.currentStatus = RtmpOutputStream.status.offline;
 
