@@ -85,7 +85,7 @@ let outputStream = new RtmpOutputStream(Config.rtmpOutputStream, {
 let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
   onStatusChange: (currentStatus, previousStatus) => {
 
-    Log.say(`Status changed from ${previousStatus} to ${currentStatus}`);
+    Log.say(`Input stream status changed from ${previousStatus} to ${currentStatus}`);
 
     switch(currentStatus){
 
@@ -114,27 +114,21 @@ let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
   },
   onExit: (error, errorCode) => {
 
-    Log.say(`InputStream exited: ${error}`)
-
-  },
-  onData: (frame) => {
-
-    // if(outputStream.currentStatus === RtmpOutputStream.status.online)
-    //   outputStream.write(frame);
+    Log.say(`InputStream exited: ${error}`);
 
   }
+
 });
 
 let fallbackVideo = new FallbackVideoPlayer(Config.fallbackFilePath, {
 
-  onData: (frame) => {
+  onExit: (error, errorCode) => {
 
-    // if(inputStream.currentStatus !== RtmpInputStream.status.online && outputStream.currentStatus === RtmpOutputStream.status.online)
-    //   outputStream.write(frame);
+    Log.say(`FallbackVideo exited: ${error}`);
 
   }
 
-})
+});
 
 
 startService();
