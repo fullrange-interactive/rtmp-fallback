@@ -17,6 +17,9 @@ class FallbackVideoPlayer{
     this.ffmpegProcess = null;
     this.ffmpegLogStream = null;
 
+    this._piped = false;
+    this._outputStream = null;
+
   }
 
   init(){
@@ -27,13 +30,30 @@ class FallbackVideoPlayer{
 
         this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegfallbacklog`);
 
-        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-re -stream_loop -1 -i ${this.filePath} -ar 44100 -c copy -f mpegts -`).split(" "));
-        this.ffmpegProcess.stdout.on("data", this.onData.bind(this));
+        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-re -stream_loop -1 -loglevel panic -i ${this.filePath} -ar 44100 -c copy -f mpegts -`).split(" "));
         this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
-        this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
+        this.ffmpegProcess.stderr.on("data", this.onError.bind(this));
 
-        Log.say("Fallback init");
+        this.ffmpegProcess.stdin.on('error', (e) => {
 
+          this.onError(`Something is erroring in the fallbackVideoPlayer ffmpeg stdin stream: ${e}`);
+
+        })
+
+        this.ffmpegProcess.stdout.on('error', (e) => {
+
+          this.onError(`Something is erroring in the fallbackVideoPlayer ffmpeg stdout stream: ${e}`);
+
+        })
+
+        this.ffmpegProcess.on('error', (e) => {
+
+          this.onError(`Something is erroring into the ffmpeg fallbackVideoPlayer process: ${e}`);
+
+        });        
+
+
+        Log.say("Fallback video player init");
         resolve();
 
       }
@@ -49,24 +69,85 @@ class FallbackVideoPlayer{
 
   onFfmpegExit(errorCode){
 
+    errorCode = errorCode === null ? 0 : errorCode;
+
     if(typeof(this.config.onExit) !== 'undefined')
       this.config.onExit(`ffmpeg fallback exit with error code ${errorCode}. More information in log ${Config.logBasePath}/ffmpegfallbacklog`);
 
   }
 
+  onError(e){
+
+    if(this.ffmpegLogStream !== null)
+      this.ffmpegLogStream.write(e)
+
+  }
+
+  pipeTo(outputStream, listenToRestart = true){
+
+    this._outputStream = outputStream;
+
+    if (listenToRestart){
+      this._outputStream.on('restart', this.onOutputStreamRestart.bind(this));
+    }
+
+  }
+
   play(){
 
-    this.enabled = true;
+    if(!this.enabled){
 
-    Log.say("Now playing fallback video...");
+      Log.say("Now playing fallback video...");
+
+      this.startOutputPipe();
+      this.enabled = true;
+
+    }
+
 
   }
 
   pause(){
 
-    Log.say("Fallback video stopped...");
+    if(this.enabled){
 
-    this.enabled = false;
+      Log.say("Fallback video stopped...");
+
+      this.stopOutputPipe();
+      this.enabled = false;
+
+    }
+
+  }
+
+  startOutputPipe() {
+
+    if (!this._piped && this._outputStream !== null) {
+
+      this._outputStream.pipeFrom(this.ffmpegProcess.stdout);
+      this._piped = true;
+
+    }
+
+  }
+
+  stopOutputPipe() {
+
+    if (this._piped && this._outputStream !== null) {
+
+      this._outputStream.unpipeFrom(this.ffmpegProcess.stdout);
+      this._piped = false;
+
+    }
+
+  }
+
+  onOutputStreamRestart(outputStream){
+
+    Log.say("Outputstream restarted...");
+    this.pipeTo(outputStream, false);
+    this.stopOutputPipe();
+    this.startOutputPipe();
 
   }
 
@@ -80,18 +161,12 @@ class FallbackVideoPlayer{
     this.ffmpegProcess.kill('SIGKILL');
     this.ffmpegProcess = null;
 
-    this.ffmpegLogStream.end()
+    if (this.ffmpegLogStream !== null){
+      this.ffmpegLogStream.end()
+    }
     this.ffmpegLogStream = null;    
 
-    Log.say("Fallback stopped");    
-
-  }
-
-  onData(frame){
-
-    if(typeof(this.config.onData) !== 'undefined' && this.enabled){
-      this.config.onData(frame);
-    }
+    Log.say("Fallback video player stopped");    
 
   }
 
