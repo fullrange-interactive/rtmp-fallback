@@ -17,7 +17,7 @@ function restartFallback(){
 
 function startService(){
 
-  Log.say("Starting RTMP fallback service...");
+  Log.error("critical", "main", "Starting RTMP fallback service...");
 
   Promise.all([
     outputStream.init(),
@@ -45,6 +45,7 @@ function startService(){
 
     }catch(e){
 
+      Log.error("critical", "main", "Error while piping input and output...", e);
       throw new Error(e);
 
     }
@@ -52,7 +53,7 @@ function startService(){
   })
   .catch((e) => {
 
-    Log.say("Error while starting rtmp fallback service...", e);
+    Log.error("critical", "main", "Error while starting rtmp fallback service...", e);
     throw new Error(e);
 
   })
@@ -61,7 +62,7 @@ function startService(){
 
 function stopService(){
 
-  Log.say("Stopping RTMP fallback service...");
+  Log.error("warning", "main", "Stopping RTMP fallback service...");
 
   outputStream.stop();
   inputStream.stop();
@@ -75,7 +76,7 @@ let outputStream = new RtmpOutputStream(Config.rtmpOutputStream, {
 
   onExit: (error) => {
 
-    Log.say(`OutputStream exited: ${error}`);
+    Log.error("warning", "OutputStream", "OutputStream exited", error);
     restartFallback();
 
   }
@@ -114,7 +115,7 @@ let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
   },
   onExit: (error, errorCode) => {
 
-    Log.say(`InputStream exited: ${error}`);
+    Log.error("warning", "InputStream", "InputStream exited with code " + errorCode, error);
 
     if(errorCode !== 0)
       restartFallback();

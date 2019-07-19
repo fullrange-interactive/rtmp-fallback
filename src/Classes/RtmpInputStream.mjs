@@ -105,7 +105,7 @@ class RtmpInputStream{
     }
     this.ffmpegLogStream = null;    
 
-    Log.say("InputStream ffmpeg stopped");
+    Log.error("warning", "InputStream", "InputStream ffmpeg stopped");
 
   }
 
@@ -247,6 +247,8 @@ class RtmpInputStream{
 
     if(this.ffmpegLogStream !== null)
       this.ffmpegLogStream.write(e);
+
+    Log.error("critical", "InputStream", "Catch error", e);
 
   }
 
