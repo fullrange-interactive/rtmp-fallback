@@ -26,6 +26,7 @@ class RtmpInputStream{
     this.config = config;
     this.currentStatus = RtmpInputStream.status.offline;
     this.lastConnection = null; //Date
+    this.isTimedOut = false;
 
     this._connectionTimeout = null;
 
@@ -42,6 +43,8 @@ class RtmpInputStream{
     return new Promise((resolve, reject) => {
 
       try{
+
+        this.isTimedOut = false;
 
         this.startFfmpeg();
 
@@ -114,7 +117,7 @@ class RtmpInputStream{
     errorCode = errorCode === null ? 0 : errorCode;
 
     if(typeof(this.config.onExit) !== 'undefined')
-      this.config.onExit(`ffmpeg input stream exited with error code ${errorCode}. More information in log ${Config.logBasePath}/ffmpeginlog_date`, errorCode);
+      this.config.onExit(`ffmpeg input stream exited with error code ${errorCode}. More information in log ${Config.logBasePath}/ffmpeginlog_date`, errorCode, this.isTimedOut);
 
   }
 
@@ -212,6 +215,8 @@ class RtmpInputStream{
 
     if(this.currentStatus === RtmpInputStream.status.offline)
       return;
+
+    this.isTimedOut = true;
 
     Log.say(`input stream timeout reached.`);
     this.restart();

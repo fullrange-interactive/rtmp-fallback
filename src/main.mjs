@@ -113,11 +113,11 @@ let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
     }
 
   },
-  onExit: (error, errorCode) => {
+  onExit: (error, errorCode, isTimedOut) => {
 
-    Log.error("warning", "InputStream", "InputStream exited with code " + errorCode, error);
+    Log.error("warning", "InputStream", `InputStream exited with code ${errorCode}. Was timed out ? ${isTimedOut ? 'Yep' : 'Nope'}`, error);
 
-    if(errorCode !== 0)
+    if(!isTimedOut)
       restartFallback();
 
   }
