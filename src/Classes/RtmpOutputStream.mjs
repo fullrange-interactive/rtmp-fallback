@@ -120,8 +120,6 @@ class RtmpOutputStream extends EventEmitter{
 
     try{
 
-      Log.error("critical", "OutputStream", "RtmpOutputStream is now offline");
-
       this.currentStatus = RtmpOutputStream.status.offline;
 
       this.ffmpegProcess.stdin.pause();
@@ -134,8 +132,12 @@ class RtmpOutputStream extends EventEmitter{
       }
       this.ffmpegLogStream = null;
 
+      Log.error("critical", "OutputStream", "RtmpOutputStream is now offline");
+
     }
     catch(e){
+
+      Log.error("critical", "OutputStream", "Can't stop OutputStream.", e);
 
     }
 

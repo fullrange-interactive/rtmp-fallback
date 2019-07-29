@@ -259,7 +259,7 @@ class RtmpInputStream{
 
   stop(){
 
-    Log.say("stop called.");
+    Log.say("InputStream stop called.");
 
     if(this.currentStatus !== RtmpInputStream.status.offline){
 

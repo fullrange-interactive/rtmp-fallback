@@ -8,16 +8,19 @@ import Log from './Classes/Log';
 
 import Config from './Config';
 
+let fallbackStatus = "offline";
+
 function restartFallback(){
 
-  stopService();
-  setTimeout(startService, 3000);
+  process.exit();
 
 }
 
 function startService(){
 
   Log.error("critical", "main", "Starting RTMP fallback service...");
+
+  fallbackStatus = "init";
 
   Promise.all([
     outputStream.init(),
@@ -43,7 +46,11 @@ function startService(){
       //So, start the fallback video, waiting for the input stream to be stable.
       fallbackVideo.play();
 
+      fallbackStatus = "online";
+
     }catch(e){
+
+      fallbackStatus = "offline";
 
       Log.error("critical", "main", "Error while piping input and output...", e);
       throw new Error(e);
@@ -53,6 +60,8 @@ function startService(){
   })
   .catch((e) => {
 
+    fallbackStatus = "offline";
+
     Log.error("critical", "main", "Error while starting rtmp fallback service...", e);
     throw new Error(e);
 
@@ -61,6 +70,8 @@ function startService(){
 }
 
 function stopService(){
+
+  fallbackStatus = "offline";
 
   Log.error("warning", "main", "Stopping RTMP fallback service...");
 
