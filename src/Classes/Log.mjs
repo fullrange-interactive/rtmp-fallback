@@ -1,5 +1,4 @@
 import moment from 'moment';
-
 import ProbeLog from './ProbeLog';
 
 import Config from '../Config';
@@ -18,7 +17,6 @@ class Log{
     catch(e){
       console.error("Can't send probelog", e);
     }
-    
 
   }
 
@@ -26,7 +24,7 @@ class Log{
 
     let toSay = `[${moment().format("DD.MM.YYYY - HH:mm:ss")}] [${type}] ${message}`;
 
-    console.log(toSay, value);
+    console.error(toSay, value);
 
     try{
 
@@ -44,6 +42,7 @@ class Log{
       console.error("Can't send probelog", e);
 
     }
+
 
   }
 

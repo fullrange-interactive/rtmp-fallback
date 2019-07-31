@@ -8,19 +8,16 @@ import Log from './Classes/Log';
 
 import Config from './Config';
 
-let fallbackStatus = "offline";
-
 function restartFallback(){
 
-  process.exit();
+  stopService();
+  setTimeout(startService, 3000);
 
 }
 
 function startService(){
 
-  Log.error("critical", "main", "Starting RTMP fallback service...");
-
-  fallbackStatus = "init";
+  Log.say("Starting RTMP fallback service...");
 
   Promise.all([
     outputStream.init(),
@@ -35,6 +32,8 @@ function startService(){
       let inputStreamState = data[1];
       let fallbackVideoDuration = data[2];
 
+      Log.error('critical', 'main', 'Starting RTMP fallback service...');
+
       Log.say(`OutputStream initalized. Currently ${outputStreamState}.`);
       Log.say(`InputStream initalized. Currently ${inputStreamState}.`);
       Log.say(`FallbackVideoPlayer initalized.`);
@@ -46,34 +45,25 @@ function startService(){
       //So, start the fallback video, waiting for the input stream to be stable.
       fallbackVideo.play();
 
-      fallbackStatus = "online";
-
     }catch(e){
 
-      fallbackStatus = "offline";
-
-      Log.error("critical", "main", "Error while piping input and output...", e);
-      throw new Error(e);
+      throw e;
 
     }
 
   })
-  .catch((e) => {
+  // .catch((e) => {
 
-    fallbackStatus = "offline";
+  //   Log.say("Error while starting rtmp fallback service...", e);
+  //   throw new Error(e);
 
-    Log.error("critical", "main", "Error while starting rtmp fallback service...", e);
-    throw new Error(e);
-
-  })
+  // })
 
 }
 
 function stopService(){
 
-  fallbackStatus = "offline";
-
-  Log.error("warning", "main", "Stopping RTMP fallback service...");
+  Log.say("Stopping RTMP fallback service...");
 
   outputStream.stop();
   inputStream.stop();
@@ -87,8 +77,8 @@ let outputStream = new RtmpOutputStream(Config.rtmpOutputStream, {
 
   onExit: (error) => {
 
-    Log.error("warning", "OutputStream", "OutputStream exited", error);
-    restartFallback();
+    Log.say(`OutputStream exited: ${error}`);
+    // restartFallback();
 
   }
 
@@ -97,7 +87,7 @@ let outputStream = new RtmpOutputStream(Config.rtmpOutputStream, {
 let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
   onStatusChange: (currentStatus, previousStatus) => {
 
-    Log.say(`Input stream status changed from ${previousStatus} to ${currentStatus}`);
+    Log.say(`Status changed from ${previousStatus} to ${currentStatus}`);
 
     switch(currentStatus){
 
@@ -124,29 +114,29 @@ let inputStream = new RtmpInputStream(Config.rtmpInputStream, {
     }
 
   },
-  onExit: (error, errorCode, isTimedOut) => {
+  onExit: (error, errorCode) => {
 
-    Log.error("warning", "InputStream", `InputStream exited with code ${errorCode}. Was timed out ? ${isTimedOut ? 'Yep' : 'Nope'}`, error);
+    Log.say(`InputStream exited: ${error}`)
 
-    if(!isTimedOut)
-      restartFallback();
+  },
+  onData: (frame) => {
+
+    // if(outputStream.currentStatus === RtmpOutputStream.status.online)
+    //   outputStream.write(frame);
 
   }
-
 });
 
 let fallbackVideo = new FallbackVideoPlayer(Config.fallbackFilePath, {
 
-  onExit: (error, errorCode) => {
+  onData: (frame) => {
 
-    Log.say(`FallbackVideo exited: ${error}`);
-
-    if(errorCode !== 0)
-      restartFallback();    
+    // if(inputStream.currentStatus !== RtmpInputStream.status.online && outputStream.currentStatus === RtmpOutputStream.status.online)
+    //   outputStream.write(frame);
 
   }
 
-});
+})
 
 
 startService();
