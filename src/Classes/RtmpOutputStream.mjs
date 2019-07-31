@@ -3,6 +3,8 @@ import fs from 'fs';
 import moment from 'moment';
 import EventEmitter from 'events';
 
+import Log from './Log';
+
 import Config from '../Config';
 
 class RtmpOutputStream extends EventEmitter{
@@ -16,7 +18,7 @@ class RtmpOutputStream extends EventEmitter{
     this.currentStatus = RtmpOutputStream.status.offline;
 
     this.ffmpegProcess = null;
-    this.ffmpegLogStream = null;    
+    this.ffmpegLogStream = null;
 
   }
 
@@ -26,9 +28,9 @@ class RtmpOutputStream extends EventEmitter{
 
       try{
 
-        // this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegoutlog_${moment().format("DD.MM.YYYY_HH:mm:ss")}`);
+        this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpegoutlog_${moment().format("DD.MM.YYYY_HH:mm:ss")}`);
 
-        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-fflags +genpts -re -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv ${this.url}`).split(" "));
+        this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-loglevel warning -fflags +genpts -re -f mpegts -i - -c copy -acodec libmp3lame -ar 44100 -f flv ${this.url}`).split(" "));
         this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
         this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
 
@@ -54,7 +56,7 @@ class RtmpOutputStream extends EventEmitter{
 
         this.currentStatus = RtmpOutputStream.status.online;
 
-        console.log("RtmpOutputStream is now online");
+        Log.say(`[RtmpOutputStream] ffmpeg output stream started with pid ${this.ffmpegProcess.pid}`);
 
         resolve(this.currentStatus);
 
@@ -72,16 +74,31 @@ class RtmpOutputStream extends EventEmitter{
   restart(){
 
     this.stop();
-    var retval = this.init();
-    this.emit('restart', this);
-    return retval;
+    setTimeout(() => {
+
+      this.init()
+        .then(() => {
+          this.emit('restart', this);
+        })
+        .catch((e) => {
+          throw e;
+        });
+      
+    }, 10000);
 
   }
 
   onFfmpegExit(errorCode){
 
+    errorCode = errorCode === null ? 0 : errorCode;
+
+    // console.log("Rtmp")
     if(typeof(this.config.onExit) !== 'undefined')
       this.config.onExit(`ffmpeg output stream exit with error code ${errorCode}. More information in log ${Config.logBasePath}/ffmpeginlog`);
+
+    Log.error('warning', 'OutputStream', '[OutputStream] FFMpeg exited with code ' + errorCode);
+
+    this.restart();
 
   }
 
@@ -118,7 +135,7 @@ class RtmpOutputStream extends EventEmitter{
 
     try{
 
-      console.log("RtmpOutputStream is now offline");
+      Log.say("[RtmpOutputStream] is now offline");
 
       this.currentStatus = RtmpOutputStream.status.offline;
 

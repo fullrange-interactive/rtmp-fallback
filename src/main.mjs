@@ -32,6 +32,8 @@ function startService(){
       let inputStreamState = data[1];
       let fallbackVideoDuration = data[2];
 
+      Log.error('critical', 'main', 'Starting RTMP fallback service...');
+
       Log.say(`OutputStream initalized. Currently ${outputStreamState}.`);
       Log.say(`InputStream initalized. Currently ${inputStreamState}.`);
       Log.say(`FallbackVideoPlayer initalized.`);
@@ -45,17 +47,17 @@ function startService(){
 
     }catch(e){
 
-      throw new Error(e);
+      throw e;
 
     }
 
   })
-  .catch((e) => {
+  // .catch((e) => {
 
-    Log.say("Error while starting rtmp fallback service...", e);
-    throw new Error(e);
+  //   Log.say("Error while starting rtmp fallback service...", e);
+  //   throw new Error(e);
 
-  })
+  // })
 
 }
 
@@ -76,7 +78,7 @@ let outputStream = new RtmpOutputStream(Config.rtmpOutputStream, {
   onExit: (error) => {
 
     Log.say(`OutputStream exited: ${error}`);
-    restartFallback();
+    // restartFallback();
 
   }
 

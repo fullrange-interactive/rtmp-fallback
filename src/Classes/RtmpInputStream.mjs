@@ -63,24 +63,18 @@ class RtmpInputStream{
 
   }
 
-  onRtmpdumpExit(errorCode){
-
-    errorCode = errorCode === null ? 0 : errorCode;
-
-    if(typeof(this.config.onExit) !== 'undefined')
-      this.config.onExit(`rtmpdump input stream exited with error code ${errorCode}. More information in log ${Config.logBasePath}/rtmpdumplog_date`, errorCode);
-
-
-  }
-
   onFfmpegExit(errorCode){
 
     errorCode = errorCode === null ? 0 : errorCode;
 
+    Log.error('warning', 'InputStream', '[InputStream] Input Stream FFMpeg exited with code ' + errorCode);
+    
     if(typeof(this.config.onExit) !== 'undefined')
       this.config.onExit(`ffmpeg input stream exited with error code ${errorCode}. More information in log ${Config.logBasePath}/ffmpeginlog_date`, errorCode);
 
-    this.restart();
+    this.restart(() => {
+      this.pipeTo(this._outputStream, false);
+    });
 
   }
 
@@ -142,7 +136,10 @@ class RtmpInputStream{
 
   startOutputPipe() {
 
+
     if (!this._piped && this._outputStream !== null) {
+
+    // console.log("startoutputpipe ---- " + this.url);
 
       this._outputStream.pipeFrom(this.ffmpegProcess.stdout);
       this._piped = true;
@@ -164,10 +161,16 @@ class RtmpInputStream{
 
   onOutputStreamRestart(outputStream){
 
-    Log.say("Outputstream restarted...");
-    this.pipeTo(outputStream, false);
+    Log.say("[InputStream] output stream restarted. Restarting InputStream with outputStream = " + outputStream.url);
     this.stopOutputPipe();
-    this.startOutputPipe();
+
+    this.restart(() => {
+
+      this.pipeTo(outputStream, false);
+      this.startOutputPipe();
+
+    });
+
 
   }
 
@@ -184,27 +187,39 @@ class RtmpInputStream{
     if(this.currentStatus === RtmpInputStream.status.offline)
       return;
 
-    Log.say(`input stream timeout reached. Is ffmpeg stdin writiable ?: ${this.ffmpegProcess.stdin.writable}`);
-    // this.restart();
+    Log.error('warning', 'InputStream', '[InputStream] input stream timeout reached.');
+
+    this.restart();
 
   }
 
-  restart(){
+  restart(callback){
 
-    Log.say("Input stream restart called.");
+    Log.say("[InputStream] restart called.");
+
+    if (this._restarting) {
+      Log.say("[InputStream] aborting restart ... a restart is already in process");
+      return;
+    }
+
+    this._restarting = true;
 
     this.stop();
+
     setTimeout(() => {
 
       this.init()
         .then(() => {
 
-          this.startOutputPipe();
+          if (typeof callback !== 'undefined') {
+            callback();
+          }
+          this._restarting = false;
 
         })
         .catch((e) => {
 
-          throw new Error(e);
+          throw e;
 
         })
 
@@ -221,7 +236,7 @@ class RtmpInputStream{
 
   stop(){
 
-    Log.say("stop called.");
+    Log.say("[InputStream] stop called.");
 
     if(this.currentStatus !== RtmpInputStream.status.offline){
 
@@ -238,9 +253,9 @@ class RtmpInputStream{
 
   startFfmpeg(){
 
-    // this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpeginlog_${moment().format("DD.MM.YYYY_HH-mm-ss")}`);
+    this.ffmpegLogStream = fs.createWriteStream(`${Config.logBasePath}/ffmpeginlog_${moment().format("DD.MM.YYYY_HH-mm-ss")}`);
 
-    this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-i ${this.url} -c copy -f mpegts -`).split(' '));
+    this.ffmpegProcess = ChildProcess.spawn('ffmpeg', (`-loglevel warning -i ${this.url} -c copy -f mpegts -`).split(' '));
     this.ffmpegProcess.on("exit", this.onFfmpegExit.bind(this));
     this.ffmpegProcess.stdout.on("data", this.onData.bind(this));
     this.ffmpegProcess.stderr.on("data", (msg) => { if(this.ffmpegLogStream !== null) this.ffmpegLogStream.write(msg) });
@@ -257,7 +272,7 @@ class RtmpInputStream{
       console.log('something is erroring into the ffmpeg process', e);
     });
 
-    Log.say(`ffmpeg input stream started with pid ${this.ffmpegProcess.pid}`);
+    Log.say(`[InputStream] ffmpeg input stream started with pid ${this.ffmpegProcess.pid}`);
 
   }  
 
@@ -277,7 +292,7 @@ class RtmpInputStream{
     }
     this.ffmpegLogStream = null;    
 
-    Log.say("InputStream ffmpeg stopped");
+    Log.say("[InputStream] ffmpeg stopped");
 
   }
 
